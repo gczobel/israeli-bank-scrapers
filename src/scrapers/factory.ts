@@ -11,6 +11,7 @@ import UnionBankScraper from './union-bank';
 import BeinleumiScraper from './beinleumi';
 import { ScaperOptions } from './base-scraper';
 import { CompanyTypes } from '../definitions';
+import YahavScraper from './yahav';
 
 export default function createScraper(options: ScaperOptions) {
   switch (options.companyId) {
@@ -44,6 +45,8 @@ export default function createScraper(options: ScaperOptions) {
       return new UnionBankScraper(options);
     case CompanyTypes.beinleumi:
       return new BeinleumiScraper(options);
+    case CompanyTypes.yahav:
+      return new YahavScraper(options);
     default:
       throw new Error(`unknown company id ${options.companyId}`);
   }
