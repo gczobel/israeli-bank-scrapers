@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import moment, { Moment } from 'moment';
 import { Page } from 'puppeteer';
 import { SHEKEL_CURRENCY } from '../constants';
@@ -5,7 +6,6 @@ import {
   clickButton, elementPresentOnPage,
   pageEvalAll, waitUntilElementFound,
 } from '../helpers/elements-interactions';
-import { waitForRedirect } from '../helpers/navigation';
 import {
   Transaction, TransactionsAccount,
   TransactionStatuses, TransactionTypes,
@@ -18,13 +18,11 @@ import {
 } from './base-scraper-with-browser';
 
 const LOGIN_URL = 'https://login.yahav.co.il/login/';
-const BASE_URL = 'https://digital.yahav.co.il/BaNCSDigitalUI/app/index.html#!/';
+const BASE_URL = 'https://digital.yahav.co.il/BaNCSDigitalUI/app/index.html#/';
 const INVALID_DETAILS_SELECTOR = '.ui-dialog-buttons';
 const BASE_WELCOME_URL = `${BASE_URL}main/home`;
-// const REDIRECT = /https:\/\/digital\.yahav\.co.il\/BaNCSDigitalUI\/app\/index\.html#!\/authentication(.|\n)*/;
-const REDIRECT = 'https://digital.yahav.co.il/BaNCSDigitalUI/app/index.html#!/authentication';
-// const CURRENT_URL = `${BASE_URL}main/accounts/current`;
-const DATE_FORMAT = 'DD/MM/YY';
+
+const DATE_FORMAT = 'DD/MM/YYYY';
 
 const USER_ELEM = '#USER';
 const PASSWD_ELEM = '#PASSWORD';
@@ -114,7 +112,15 @@ function handleTransactionRow(txns: ScrapedTransaction[], txnRow: TransactionsTr
   txns.push(tx);
 }
 
+async function sleep(ms: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function getAccountTransactions(page: Page): Promise<Transaction[]> {
+  // Wait for transactions.
+  await sleep(2000);
+  await waitUntilElementFound(page, '.under-line-txn-table-header', true);
+
   const txns: ScrapedTransaction[] = [];
   const transactionsDivs = await pageEvalAll<TransactionsTr[]>(page, '.list-item-holder .entire-content-ctr', [], (divs) => {
     return (divs as HTMLElement[]).map((div) => ({
@@ -130,27 +136,32 @@ async function getAccountTransactions(page: Page): Promise<Transaction[]> {
   return convertTransactions(txns);
 }
 
-async function searchByDates(page: Page, startDate: Moment) {
-  // await dropdownSelect(page, 'select#ddlTransactionPeriod', '004');
-  // await waitUntilElementFound(page, 'select#ddlTransactionPeriod');
-  // await fillInput(
-  //   page,
-  //   'input#dtFromDate_textBox',
-  //   startDate.format(DATE_FORMAT),
-  // );
-  // await clickButton(page, 'input#btnDisplayDates');
-  // await waitForNavigation(page);
+async function searchByDates(page: Page/* , startDate: Moment */) {
+  // TODO: Find a way to select the dates programatically.
 
-  console.log(startDate);
+  // Click on drop-down
   await clickButton(page, '.statement-options .selected-item-top');
-  await waitUntilElementFound(page, '.selected-item.enabled.color-chng');
+
+  // Wait for drop-down creation
+  await sleep(1000);
+
   // Click the 3 months transactions option
   await clickButton(page, 'div.drop-down-item:nth-child(1) > div:nth-child(1) > span');
 }
 
+function filterTXByDate(txns: Transaction[], startDate: Moment): Transaction[] {
+  const txs = _.filter(txns, (tx) => {
+    return startDate.isSameOrBefore(tx.date, 'day');
+  });
+
+  return txs;
+}
+
 async function fetchAccountData(page: Page, startDate: Moment, accountID: string): Promise<TransactionsAccount> {
-  await searchByDates(page, startDate);
-  const txns = await getAccountTransactions(page);
+  await searchByDates(page/* , startDate */);
+  const accountTxs = await getAccountTransactions(page);
+  const txns = filterTXByDate(accountTxs, startDate);
+
   return {
     accountNumber: accountID,
     txns,
@@ -169,13 +180,13 @@ async function fetchAccounts(page: Page, startDate: Moment): Promise<Transaction
 }
 
 async function waitReadinessForAll(page: Page) {
-  await waitUntilElementFound(page, `${USER_ELEM}`, true, 60000);
-  await waitUntilElementFound(page, `${PASSWD_ELEM}`, true, 60000);
-  await waitUntilElementFound(page, `${NATIONALID_ELEM}`, true, 60000);
+  await waitUntilElementFound(page, `${USER_ELEM}`, true);
+  await waitUntilElementFound(page, `${PASSWD_ELEM}`, true);
+  await waitUntilElementFound(page, `${NATIONALID_ELEM}`, true);
 }
 
 async function redirectOrDialog(page: Page) {
-  await waitForRedirect(page, 20000, false, [`${REDIRECT}`]);
+  await waitUntilElementFound(page, '.account-details', true);
 }
 
 class YahavScraper extends BaseScraperWithBrowser {
@@ -195,8 +206,10 @@ class YahavScraper extends BaseScraperWithBrowser {
   }
 
   async fetchData() {
+    // Goto statements page
+    await waitUntilElementFound(this.page, '.account-details', true);
     await clickButton(this.page, '.account-details');
-    await waitUntilElementFound(this.page, '.statement-options .selected-item-top', true, 60000);
+    await waitUntilElementFound(this.page, '.statement-options .selected-item-top', true);
 
     const defaultStartMoment = moment().subtract(3, 'months').add(1, 'day');
     const startDate = this.options.startDate || defaultStartMoment.toDate();
