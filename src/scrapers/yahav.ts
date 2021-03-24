@@ -4,8 +4,9 @@ import { Page } from 'puppeteer';
 import { SHEKEL_CURRENCY } from '../constants';
 import {
   clickButton, elementPresentOnPage,
-  pageEvalAll, waitUntilElementFound,
+  pageEvalAll, waitUntilElementDisappear, waitUntilElementFound,
 } from '../helpers/elements-interactions';
+import { waitForNavigation } from '../helpers/navigation';
 import {
   Transaction, TransactionsAccount,
   TransactionStatuses, TransactionTypes,
@@ -21,6 +22,8 @@ const LOGIN_URL = 'https://login.yahav.co.il/login/';
 const BASE_URL = 'https://digital.yahav.co.il/BaNCSDigitalUI/app/index.html#/';
 const INVALID_DETAILS_SELECTOR = '.ui-dialog-buttons';
 const BASE_WELCOME_URL = `${BASE_URL}main/home`;
+
+const ACCOUNT_ID_SELECTOR = '.dropdown-dir .selected-item-top';
 
 const DATE_FORMAT = 'DD/MM/YYYY';
 
@@ -54,7 +57,7 @@ function getPossibleLoginResults(page: Page): PossibleLoginResults {
 }
 
 async function getAccountID(page: Page) {
-  const selectedSnifAccount = await page.$eval('.dropdown-dir .selected-item-top', (option) => {
+  const selectedSnifAccount = await page.$eval(`${ACCOUNT_ID_SELECTOR}`, (option) => {
     return (option as HTMLElement).innerText;
   });
 
@@ -102,8 +105,8 @@ function handleTransactionRow(txns: ScrapedTransaction[], txnRow: TransactionsTr
   const tx: ScrapedTransaction = {
     date: div[1],
     reference: div[2].replace(regex, ''),
-    memo: div[3],
-    description: '',
+    memo: '',
+    description: div[3],
     debit: div[4],
     credit: div[5],
     status: TransactionStatuses.Completed,
@@ -118,7 +121,6 @@ async function sleep(ms: number) {
 
 async function getAccountTransactions(page: Page): Promise<Transaction[]> {
   // Wait for transactions.
-  await sleep(2000);
   await waitUntilElementFound(page, '.under-line-txn-table-header', true);
 
   const txns: ScrapedTransaction[] = [];
@@ -145,8 +147,23 @@ async function searchByDates(page: Page/* , startDate: Moment */) {
   // Wait for drop-down creation
   await sleep(1000);
 
+  let ddvalue = '';
+  let item = 1;
+  do {
+    ddvalue = await page.$eval(`div.drop-down-item:nth-child(${item}) > div:nth-child(1) > span`, (option) => {
+      return (option as HTMLElement).innerText;
+    });
+
+    if (ddvalue === '3 חודשים אחרונים') {
+      break;
+    }
+    item += 1;
+  }
+  while (!_.isEmpty(ddvalue));
+
+
   // Click the 3 months transactions option
-  await clickButton(page, 'div.drop-down-item:nth-child(1) > div:nth-child(1) > span');
+  await clickButton(page, `div.drop-down-item:nth-child(${item}) > div:nth-child(1) > span`);
 }
 
 function filterTXByDate(txns: Transaction[], startDate: Moment): Transaction[] {
@@ -159,6 +176,7 @@ function filterTXByDate(txns: Transaction[], startDate: Moment): Transaction[] {
 
 async function fetchAccountData(page: Page, startDate: Moment, accountID: string): Promise<TransactionsAccount> {
   await searchByDates(page/* , startDate */);
+  await waitUntilElementDisappear(page, '.loading-bar-spinner');
   const accountTxs = await getAccountTransactions(page);
   const txns = filterTXByDate(accountTxs, startDate);
 
@@ -186,7 +204,15 @@ async function waitReadinessForAll(page: Page) {
 }
 
 async function redirectOrDialog(page: Page) {
+  // Click on messages
+  await waitForNavigation(page);
+  await waitUntilElementDisappear(page, '.loading-bar-spinner');
+  const hasMessage = await elementPresentOnPage(page, '.messaging-links-container');
+  if (hasMessage) {
+    await clickButton(page, '.link-1');
+  }
   await waitUntilElementFound(page, '.account-details', true);
+  await waitUntilElementDisappear(page, '.loading-bar-spinner');
 }
 
 class YahavScraper extends BaseScraperWithBrowser {
