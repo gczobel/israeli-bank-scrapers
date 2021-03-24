@@ -25,8 +25,7 @@ export const SCRAPERS = {
     name: 'Bank Hapoalim',
     loginFields: ['userCode', PASSWORD_FIELD],
   },
-  [CompanyTypes.hapoalimBeOnline]: {
-    // TODO remove in Major version
+  [CompanyTypes.hapoalimBeOnline]: { // TODO remove in Major version
     name: 'Bank Hapoalim',
     loginFields: ['userCode', PASSWORD_FIELD],
   },
@@ -46,8 +45,7 @@ export const SCRAPERS = {
     name: 'Bank Otsar Hahayal',
     loginFields: ['username', PASSWORD_FIELD],
   },
-  [CompanyTypes.leumiCard]: {
-    // TODO remove in Major version
+  [CompanyTypes.leumiCard]: { // TODO remove in Major version
     name: 'Leumi Card',
     loginFields: ['username', PASSWORD_FIELD],
   },
