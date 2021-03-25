@@ -1,0 +1,15 @@
+import HapoalimScraper from './hapoalim';
+import OtsarHahayalScraper from './otsar-hahayal';
+import LeumiScraper from './leumi';
+import DiscountScraper from './discount';
+import MaxScraper from './max';
+import VisaCalScraper from './visa-cal';
+import IsracardScraper from './isracard';
+import AmexScraper from './amex';
+import MizrahiScraper from './mizrahi';
+import UnionBankScraper from './union-bank';
+import BeinleumiScraper from './beinleumi';
+import MassadScraper from './massad';
+import { ScaperOptions } from './base-scraper';
+import YahavScraper from './yahav';
+export default function createScraper(options: ScaperOptions): HapoalimScraper | OtsarHahayalScraper | LeumiScraper | DiscountScraper | MaxScraper | VisaCalScraper | IsracardScraper | AmexScraper | MizrahiScraper | UnionBankScraper | BeinleumiScraper | MassadScraper | YahavScraper;
