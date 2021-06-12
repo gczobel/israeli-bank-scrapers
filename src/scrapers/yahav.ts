@@ -21,10 +21,11 @@ import {
 const LOGIN_URL = 'https://login.yahav.co.il/login/';
 const BASE_URL = 'https://digital.yahav.co.il/BaNCSDigitalUI/app/index.html#/';
 const INVALID_DETAILS_SELECTOR = '.ui-dialog-buttons';
+const CHANGE_PASSWORD_OLD_PASS = 'input#ef_req_parameter_old_passwd';
 const BASE_WELCOME_URL = `${BASE_URL}main/home`;
 
 const ACCOUNT_ID_SELECTOR = '.dropdown-dir .selected-item-top';
-
+const ACCOUNT_DETAILS_SELECTOR = '.account-details';
 const DATE_FORMAT = 'DD/MM/YYYY';
 
 const USER_ELEM = '#USER';
@@ -51,8 +52,10 @@ function getPossibleLoginResults(page: Page): PossibleLoginResults {
     return elementPresentOnPage(page, `${INVALID_DETAILS_SELECTOR}`);
   }];
 
-  // TODO: add change password url/element
-  urls[LoginResults.ChangePassword] = [];
+  urls[LoginResults.ChangePassword] = [async () => {
+    return elementPresentOnPage(page, `${CHANGE_PASSWORD_OLD_PASS}`);
+  }];
+
   return urls;
 }
 
@@ -211,7 +214,12 @@ async function redirectOrDialog(page: Page) {
   if (hasMessage) {
     await clickButton(page, '.link-1');
   }
-  await waitUntilElementFound(page, '.account-details', true);
+
+  const promise1 = page.waitForSelector(ACCOUNT_DETAILS_SELECTOR, { timeout: 30000 });
+  const promise2 = page.waitForSelector(CHANGE_PASSWORD_OLD_PASS, { timeout: 30000 });
+  const promises = [promise1, promise2];
+
+  await Promise.race(promises);
   await waitUntilElementDisappear(page, '.loading-bar-spinner');
 }
 
@@ -233,8 +241,8 @@ class YahavScraper extends BaseScraperWithBrowser {
 
   async fetchData() {
     // Goto statements page
-    await waitUntilElementFound(this.page, '.account-details', true);
-    await clickButton(this.page, '.account-details');
+    await waitUntilElementFound(this.page, ACCOUNT_DETAILS_SELECTOR, true);
+    await clickButton(this.page, ACCOUNT_DETAILS_SELECTOR);
     await waitUntilElementFound(this.page, '.statement-options .selected-item-top', true);
 
     const defaultStartMoment = moment().subtract(3, 'months').add(1, 'day');
