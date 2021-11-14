@@ -1,4 +1,3 @@
-import _ from 'lodash';
 import moment, { Moment } from 'moment';
 import { Page } from 'puppeteer';
 import { SHEKEL_CURRENCY } from '../constants';
@@ -118,9 +117,9 @@ function handleTransactionRow(txns: ScrapedTransaction[], txnRow: TransactionsTr
   txns.push(tx);
 }
 
-async function sleep(ms: number) {
-  await new Promise((resolve) => setTimeout(resolve, ms));
-}
+// async function sleep(ms: number) {
+//   await new Promise((resolve) => setTimeout(resolve, ms));
+// }
 
 async function getAccountTransactions(page: Page): Promise<Transaction[]> {
   // Wait for transactions.
@@ -141,51 +140,90 @@ async function getAccountTransactions(page: Page): Promise<Transaction[]> {
   return convertTransactions(txns);
 }
 
-async function searchByDates(page: Page/* , startDate: Moment */) {
-  // TODO: Find a way to select the dates programatically.
+async function searchByDates(page: Page, startDate: Moment) {
+  // Get the day number from startDate. 1-31 (usually 1)
+  const startDateDay = parseInt(startDate.format('D'), 0);
+  const startDateMonth = parseInt(startDate.format('M'), 0);
+  const startDateYear = startDate.format('Y');
 
-  // Click on drop-down
-  await clickButton(page, '.statement-options .selected-item-top');
+  // Open the calendar date picker
+  const dateFromPick = 'div.date-options-cell:nth-child(7) > date-picker:nth-child(1) > div:nth-child(1) > span:nth-child(2)';
+  await waitUntilElementFound(page, dateFromPick, true);
+  await clickButton(page, dateFromPick);
 
-  // Wait for drop-down creation
-  await sleep(1000);
+  // Wait until first day appear.
+  await waitUntilElementFound(page, '.pmu-days > div:nth-child(1)', true);
 
-  let ddvalue = '';
-  let item = 1;
-  do {
-    ddvalue = await page.$eval(`div.drop-down-item:nth-child(${item}) > div:nth-child(1) > span`, (option) => {
-      return (option as HTMLElement).innerText;
+  // Open Months options.
+  // await sleep(500);
+  const monthFromPick = '.pmu-month';
+  await waitUntilElementFound(page, monthFromPick, true);
+  await clickButton(page, monthFromPick);
+  // await page.click(monthFromPick);
+  await waitUntilElementFound(page, '.pmu-months > div:nth-child(1)', true);
+
+  // Open Year options.
+  // await sleep(500);
+  // Use same selector... Yahav knows why...
+  await waitUntilElementFound(page, monthFromPick, true);
+  await clickButton(page, monthFromPick);
+  // await page.click(monthFromPick);
+  await waitUntilElementFound(page, '.pmu-years > div:nth-child(1)', true);
+
+  // Select year.
+  for (let i = 1; i < 13; i += 1) {
+    const selector = `.pmu-years > div:nth-child(${i})`;
+    const year = await page.$eval(selector, (y) => {
+      return (y as HTMLElement).innerText;
     });
-
-    if (ddvalue === '3 חודשים אחרונים') {
+    if (startDateYear === year) {
+      await clickButton(page, selector);
+      // await page.click(selector);
       break;
     }
-    item += 1;
   }
-  while (!_.isEmpty(ddvalue));
 
+  // Select Month.
+  await waitUntilElementFound(page, '.pmu-months > div:nth-child(1)', true);
+  const monthSelector = `.pmu-months > div:nth-child(${startDateMonth})`;
+  await clickButton(page, monthSelector);
+  // await page.click(monthSelector);
 
-  // Click the 3 months transactions option
-  await clickButton(page, `div.drop-down-item:nth-child(${item}) > div:nth-child(1) > span`);
+  // Select Day.
+  // The calendar grid shows 7 days and 6 weeks = 42 days
+  for (let i = 1; i < 42; i += 1) {
+    const selector = `.pmu-days > div:nth-child(${i})`;
+    const day = await page.$eval(selector, (d) => {
+      return (d as HTMLElement).innerText;
+    });
+
+    if (startDateDay === parseInt(day, 0)) {
+      await clickButton(page, selector);
+      // await page.click(selector);
+      break;
+    }
+  }
 }
 
-function filterTXByDate(txns: Transaction[], startDate: Moment): Transaction[] {
-  const txs = _.filter(txns, (tx) => {
-    return startDate.isSameOrBefore(tx.date, 'day');
-  });
+// function filterTXByDate(txns: Transaction[], startDate: Moment): Transaction[] {
+//   const txs = _.filter(txns, (tx) => {
+//     return startDate.isSameOrBefore(tx.date, 'day');
+//   });
 
-  return txs;
-}
+//   return txs;
+// }
 
 async function fetchAccountData(page: Page, startDate: Moment, accountID: string): Promise<TransactionsAccount> {
-  await searchByDates(page/* , startDate */);
+  await waitUntilElementDisappear(page, '.loading-bar-spinner');
+  await searchByDates(page, startDate);
   await waitUntilElementDisappear(page, '.loading-bar-spinner');
   const accountTxs = await getAccountTransactions(page);
-  const txns = filterTXByDate(accountTxs, startDate);
+  // Filter tx by date because searchbydates do not work.
+  // const txns = filterTXByDate(accountTxs, startDate);
 
   return {
     accountNumber: accountID,
-    txns,
+    txns: accountTxs,
   };
 }
 
