@@ -1,4 +1,4 @@
-import { Browser, Page } from 'puppeteer';
+import { Browser, Frame, Page } from 'puppeteer';
 import { ScraperErrorTypes, BaseScraper, ScaperScrapingResult, ScraperCredentials } from './base-scraper';
 declare enum LoginBaseResults {
     Success = "SUCCESS",
@@ -25,21 +25,22 @@ export interface LoginOptions {
         value: string;
     }[];
     submitButtonSelector: string;
-    preAction?: () => Promise<void>;
+    preAction?: () => Promise<Frame | void>;
     postAction?: () => Promise<void>;
     possibleResults: PossibleLoginResults;
+    userAgent?: string;
 }
 declare class BaseScraperWithBrowser extends BaseScraper {
     protected browser: Browser;
     protected page: Page;
     initialize(): Promise<void>;
-    navigateTo(url: string, page?: Page): Promise<void>;
+    navigateTo(url: string, page?: Page, timeout?: number): Promise<void>;
     getLoginOptions(_credentials: ScraperCredentials): LoginOptions;
-    fillInputs(fields: {
+    fillInputs(pageOrFrame: Page | Frame, fields: {
         selector: string;
         value: string;
     }[]): Promise<void>;
     login(credentials: Record<string, string>): Promise<ScaperScrapingResult>;
-    terminate(): Promise<void>;
+    terminate(_success: boolean): Promise<void>;
 }
 export { BaseScraperWithBrowser };

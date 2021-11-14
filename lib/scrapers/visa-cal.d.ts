@@ -1,26 +1,19 @@
-import { ScraperErrorTypes, BaseScraper, ScraperCredentials } from './base-scraper';
-import { TransactionsAccount } from '../transactions';
-declare class VisaCalScraper extends BaseScraper {
-    private authHeader;
-    login(credentials: ScraperCredentials): Promise<{
-        success: boolean;
-        errorType: ScraperErrorTypes;
-        errorMessage?: undefined;
-    } | {
-        success: boolean;
-        errorType: ScraperErrorTypes;
-        errorMessage: string;
-    } | {
-        success: boolean;
-        errorType?: undefined;
-        errorMessage?: undefined;
-    }>;
-    fetchData(): Promise<{
-        success: boolean;
-        accounts: TransactionsAccount[];
-    } | {
-        success: boolean;
-        accounts?: undefined;
-    }>;
+import { BaseScraperWithBrowser } from './base-scraper-with-browser';
+import { ScaperScrapingResult } from './base-scraper';
+declare class VisaCalScraper extends BaseScraperWithBrowser {
+    openLoginPopup: () => Promise<never>;
+    getLoginOptions(credentials: Record<string, string>): {
+        loginUrl: string;
+        fields: {
+            selector: string;
+            value: string;
+        }[];
+        submitButtonSelector: string;
+        possibleResults: import("./base-scraper-with-browser").PossibleLoginResults;
+        checkReadiness: () => Promise<void>;
+        preAction: () => Promise<never>;
+        userAgent: string;
+    };
+    fetchData(): Promise<ScaperScrapingResult>;
 }
 export default VisaCalScraper;

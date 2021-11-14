@@ -1,4 +1,4 @@
-import { Transaction } from '../transactions';
+import { TransactionsAccount } from '../transactions';
 import { ScraperCredentials, ScraperErrorTypes } from './base-scraper';
 import { BaseScraperWithBrowser, PossibleLoginResults } from './base-scraper-with-browser';
 declare class MizrahiScraper extends BaseScraperWithBrowser {
@@ -15,17 +15,15 @@ declare class MizrahiScraper extends BaseScraperWithBrowser {
     };
     fetchData(): Promise<{
         success: boolean;
+        accounts: TransactionsAccount[];
+        errorType?: undefined;
+        errorMessage?: undefined;
+    } | {
+        success: boolean;
         errorType: ScraperErrorTypes;
         errorMessage: string;
         accounts?: undefined;
-    } | {
-        success: boolean;
-        accounts: {
-            accountNumber: string;
-            txns: Transaction[];
-        }[];
-        errorType?: undefined;
-        errorMessage?: undefined;
     }>;
+    private fetchAccount;
 }
 export default MizrahiScraper;

@@ -75,6 +75,10 @@ export interface ScaperOptions {
      * @param page
      */
     preparePage?: (page: Page) => Promise<void>;
+    /**
+     * if set, store a screnshot if failed to scrape. Used for debug purposes
+     */
+    storeFailureScreenShotPath?: string;
 }
 export declare enum ScaperProgressTypes {
     Initializing = "INITIALIZING",
@@ -94,7 +98,7 @@ export declare class BaseScraper {
     scrape(credentials: ScraperCredentials): Promise<ScaperScrapingResult>;
     login(_credentials: Record<string, string>): Promise<ScaperLoginResult>;
     fetchData(): Promise<ScaperScrapingResult>;
-    terminate(): Promise<void>;
+    terminate(_success: boolean): Promise<void>;
     emitProgress(type: ScaperProgressTypes): void;
     emit(eventName: string, payload: Record<string, any>): void;
     onProgress(func: (...args: any[]) => void): void;
