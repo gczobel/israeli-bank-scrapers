@@ -1,4 +1,6 @@
-import puppeteer, { type Frame, type GoToOptions, type Page, type PuppeteerLifeCycleEvent } from 'puppeteer';
+import puppeteer from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import { type Frame, type GoToOptions, type Page, type PuppeteerLifeCycleEvent } from 'puppeteer';
 import { ScraperProgressTypes } from '../definitions';
 import { getDebug } from '../helpers/debug';
 import { clickButton, fillInput, waitUntilElementFound } from '../helpers/elements-interactions';
@@ -10,6 +12,9 @@ import { type ScraperCredentials, type ScraperScrapingResult } from './interface
 const VIEWPORT_WIDTH = 1024;
 const VIEWPORT_HEIGHT = 768;
 const OK_STATUS = 200;
+
+// Reintroduce the default user-agent that was used before
+const defaultUserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
 
 const debug = getDebug('base-scraper-with-browser');
 
@@ -100,7 +105,10 @@ class BaseScraperWithBrowser<TCredentials extends ScraperCredentials> extends Ba
     debug('initialize scraper');
     this.emitProgress(ScraperProgressTypes.Initializing);
 
+    debug(`Using default user-agent: ${defaultUserAgent}`);
+
     const page = await this.initializePage();
+    await page.setUserAgent(defaultUserAgent);
     await page.setCacheEnabled(false); // Clear cache and avoid 300's response status
 
     if (!page) {
@@ -161,6 +169,9 @@ class BaseScraperWithBrowser<TCredentials extends ScraperCredentials> extends Ba
 
     const headless = !showBrowser;
     debug(`launch a browser with headless mode = ${headless}`);
+
+    // Add stealth plugin to Puppeteer
+    puppeteer.use(StealthPlugin());
 
     const browser = await puppeteer.launch({
       env: this.options.verbose ? { DEBUG: '*', ...process.env } : undefined,
@@ -230,7 +241,7 @@ class BaseScraperWithBrowser<TCredentials extends ScraperCredentials> extends Ba
 
     debug('execute login process');
     const loginOptions = this.getLoginOptions(credentials);
-
+    
     if (loginOptions.userAgent) {
       debug('set custom user agent provided in options');
       await this.page.setUserAgent(loginOptions.userAgent);
